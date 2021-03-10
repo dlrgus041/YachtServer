@@ -1,0 +1,4 @@
+# TODO list.txt
+
+# 1. 오류 처리
+# 2. (Thread) Server 클래스, Match 클래스 -> startServer()에서 시작, stopServer()에서 종료하기
