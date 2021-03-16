@@ -1,8 +1,6 @@
-import util.Match
 import util.U
 
 fun main() = with (U) {
-    Match().also { it.isDaemon = true }.start()
     while (true) {
         print(">> ")
         when (readLine()?.toLowerCase()) {

@@ -1,6 +1,7 @@
 package util
 
 import network.Client
+import network.Match
 import network.Server
 import java.net.ServerSocket
 import java.time.LocalTime
@@ -9,17 +10,26 @@ import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.SynchronousQueue
-import kotlin.concurrent.thread
 
 object U {
 
-    val pool by lazy { Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors()) }
-    val serverSocket by lazy { ServerSocket(52190) }
+    lateinit var pool: ExecutorService
+    lateinit var serverSocket: ServerSocket
     val connections = Collections.synchronizedSet(mutableSetOf<Client>())
+    val arena = Collections.synchronizedMap(mutableMapOf<Int, Match>())
     val waitQ = LinkedBlockingQueue<Client>(16)
+    var id = -1
 
-    fun startServer() = Server().also { it.isDaemon = true }.start()
+    fun startServer() {
+        try {
+            pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+            serverSocket = ServerSocket(52190)
+            Server().apply { isDaemon = true }.start()
+            FindGame().apply { isDaemon = true }.start()
+        } catch (_: Exception) {
+            display("서버 포트가 사용중입니다. 프로그램을 중지하고 다른 포트를 사용하세요.")
+        }
+    }
 
     fun stopServer() {
         for (client in connections) client.close()
@@ -39,47 +49,71 @@ object U {
         println("[${LocalTime.now().format(DateTimeFormatter.ofPattern("hh:mm:ss"))}] " +
                 (if (name != null) "$name : " else "") + "$str")
 
-    fun handle(client: Client, code: Int) = with (client) {
+    fun handle(match: Int, player: Int, code: Int) = with (arena[match] ?: throw Exception()) {
         try {
             when (code) {
-                in 1..59 -> opponent?.send(code)
-                70 -> {
-                    if (isPlaying) {
-                        opponent?.send(70)
-                    } else {
-                        ready = true
-                        if (ready && opponent?.ready == true) {
-                            Thread.sleep(2000)
-
-                            send(70)
-                            isPlaying = true
-
-                            opponent?.send(70)
-                            opponent?.isPlaying = true
-                        }
+                in 1..59 -> players[(player + 1) % 2].send(code)
+                70, 130 -> {
+                    Thread.sleep(1500)
+                    players[(player + 1) % 2].send(code)
+                    if (turn == 24) {
+                        players[0].apply { ready = false }.send(254)
+                        players[1].apply { ready = false }.send(254)
+                    }
+                }
+                62, 68 -> {
+                    rematch[player] = code - 65
+                    if (rematch[0] * rematch[1] > 0 && rematch[0] > 0) {
+                        players[0].send(63)
+                        players[1].send(63)
+                    } else if (rematch[0] * rematch[1] == 0) return@with
+                    else {
+                        players[0].send(67)
+                        players[1].send(67)
                     }
                 }
                 in 75..100 -> {
-                    total = code - 70
-                    if (total * opponent!!.total > 0) {
-                        Thread.sleep(2000)
+                    score[player] = code - 70
+                    if (score[0] * score[1] > 0) {
+                        Thread.sleep(1500)
 
-                        var p1 = 65
-                        var p2 = 69
-                        if (total > opponent!!.total) p1 = p2.also { p2 = p1 }
+                        var s0 = 61
+                        var s1 = 69
+                        if (score[0] > score[1]) s1 = s0.also { s0 = s1 }
 
-                        send(p1)
-                        opponent?.send(p2)
+                        players[0].send(s0)
+                        players[1].send(s1)
                     } else return@with
                 }
-                200 -> {
-                    opponent?.send(200)
-                    Thread.sleep(2000)
-
-                    opponent?.initialize()
-                    initialize()
+                in 111..129 -> {
+                    ++turn
+                    players[(player + 1) % 2].send(code)
                 }
-//                201 -> connections.remove(client)
+//                200 -> connections.remove(client)
+                201 -> {
+                    players[(player + 1) % 2].send(201)
+                    Thread.sleep(1500)
+
+                    players[0].initialize()
+                    players[1].initialize()
+                    arena.remove(match)
+                }
+                251 -> {}
+                255 -> {
+                    if (isPlaying) {
+                        Thread.sleep(1500)
+                        players[(player + 1) % 2].send(255)
+                    } else {
+                        players[player].ready = true
+                        if (players[0].ready && players[1].ready) {
+                            Thread.sleep(2000)
+
+                            players[0].send(255)
+                            players[1].send(255)
+                            isPlaying = true
+                        }
+                    }
+                }
                 else -> TODO("undefined code")
             }
         } catch (_: Exception) {
