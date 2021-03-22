@@ -8,8 +8,15 @@ fun main() = with (U) {
             "stop" -> stopServer()
             "count" -> count()
             "list" -> list()
+            "exit" -> {
+                display("프로그램을 종료합니다.")
+                return@with
+            }
             "" -> { }
-            else -> println("잘못 입력하셨습니다. 'help'를 입력하면 도움말을 볼 수 있습니다.")
+            else -> {
+//                println("잘못 입력하셨습니다. 'help'를 입력하면 도움말을 볼 수 있습니다.")
+                display("error in main")
+            }
 //            "help" -> help()
 //       }
 //           try {

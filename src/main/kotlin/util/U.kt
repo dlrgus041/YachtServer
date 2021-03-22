@@ -114,10 +114,10 @@ object U {
                         }
                     }
                 }
-                else -> TODO("undefined code")
+                else -> display("undefined code")
             }
         } catch (_: Exception) {
-            TODO("property 'opponent' is null")
+            display("property 'opponent' is null")
         }
     }
 }

@@ -36,7 +36,7 @@ class Client(val socket: Socket) {
                     }
                 } catch (_: Exception) {
                     close().get()
-                    display("오류가 발생하여 연결을 종료합니다.", name)
+                    display("read() error in client", name)
                 }
             }
         }
@@ -57,7 +57,5 @@ class Client(val socket: Socket) {
         U.connections.remove(this)
         U.waitQ.remove(this)
         U.count()
-        `in`.close()
-        out.close()
     }
 }

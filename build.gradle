@@ -1,6 +1,9 @@
 plugins {
-    id 'org.jetbrains.kotlin.jvm' version '1.4.10'
+    id 'org.jetbrains.kotlin.jvm' version '1.4.31'
+    id 'application'
 }
+
+mainClassName = 'MainKt'
 
 group 'org.game'
 version '1.0-SNAPSHOT'
